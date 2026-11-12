@@ -19,7 +19,7 @@ const friendly = e => {
 };
 
 export function createLive(url, key) {
-  const sb = createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+  const sb = createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'implicit' } });
   const D = { mode: 'live', ready: false, user: null, me: null, drops: {}, mine: new Set(), claims: {}, handles: {} };
   let listener = () => { }, channel = null, poll = null;
   const emit = ev => listener(ev || {});
@@ -96,8 +96,9 @@ export function createLive(url, key) {
     async sendCode(kind, value) {
       const upgrading = D.user && D.user.isAnon;
       let res;
-      if (upgrading) res = await sb.auth.updateUser(kind === 'phone' ? { phone: value } : { email: value });
-      else res = await sb.auth.signInWithOtp(kind === 'phone' ? { phone: value } : { email: value, options: { shouldCreateUser: true } });
+      const back = location.origin + location.pathname;
+      if (upgrading) res = await sb.auth.updateUser(kind === 'phone' ? { phone: value } : { email: value }, kind === 'email' ? { emailRedirectTo: back } : undefined);
+      else res = await sb.auth.signInWithOtp(kind === 'phone' ? { phone: value } : { email: value, options: { shouldCreateUser: true, emailRedirectTo: back } });
       if (res.error) throw new Error(friendly(res.error));
       return upgrading;
     },

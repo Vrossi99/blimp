@@ -12,6 +12,8 @@ import {
 const URL_ = import.meta.env.VITE_SUPABASE_URL, KEY_ = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const api = URL_ && KEY_ ? createLive(URL_, KEY_) : createDemo();
 const D = api.D;
+// Opened from an email sign-in link? (Supabase puts the session in the URL hash.)
+const cameFromLink = /access_token=|type=(signup|magiclink|email_change)/.test(location.hash);
 
 /* ---------- app state ---------- */
 const S = {
@@ -285,7 +287,7 @@ function vSuId() {
 function vSuCode() {
   const shown = S.su.kind === 'phone' ? fmtPhone(S.su.value) : S.su.value;
   return '<main class="screen pad">' + stepHead(2, 'su-id') +
-    '<h1 class="stitle">Enter the code</h1><p class="ssub">Sent to ' + esc(shown) + '</p>' +
+    '<h1 class="stitle">Enter the code</h1><p class="ssub">Sent to ' + esc(shown) + (S.su.kind === 'email' ? '. No code in the email? Tap the link in it instead — it signs you in here.' : '') + '</p>' +
     '<div class="field" style="margin-top:28px"><label class="label" for="su-code">6-digit code</label><input id="su-code" class="input strong mono otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="······" data-bind="su.code" value="' + esc(S.su.code) + '">' + suErr() + notes() +
     '<button class="skip" style="align-self:flex-start;padding:0" data-act="su-resend">Resend code</button></div>' +
     '<div style="margin-top:auto;display:flex;flex-direction:column;gap:12px;padding-top:24px">' + (D.mode === 'demo' ? '<p class="fine">Demo: any 6 digits work.</p>' : '') + primary('Verify', 'su-verify', 'var(--y)') + '</div></main>';
@@ -604,6 +606,7 @@ api.onChange(ev => {
   geo.autoStart();
   try { await api.start(); } catch (e) { S.note = 'Couldn’t connect. Check your connection and reopen the app.'; }
   if (S.screen === 'loading') S.screen = D.user ? 'home' : 'welcome';
+  if (cameFromLink && D.user && !D.user.isAnon && D.me && !D.me.handle) { S.su.handle = ''; S.screen = 'su-handle'; }
   // A shared link like blimp.app/#code=FRONT opens that drop's code
   const m = location.hash.match(/code=([A-Za-z0-9]{4,8})/);
   if (m && D.user) { S.codeInput = m[1]; history.replaceState(null, '', location.pathname); findCode(); }
