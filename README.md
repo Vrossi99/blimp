@@ -43,10 +43,7 @@ Blimp is a web app that installs to your phone's home screen. It uses your real 
 
 1. Go to **vercel.com** → sign up with GitHub.
 2. **Add New → Project** → import the **blimp** repo. Vercel detects **Vite** on its own.
-3. Open **Environment Variables** and add:
-   - `VITE_SUPABASE_URL` = your Project URL
-   - `VITE_SUPABASE_ANON_KEY` = your anon / publishable key
-4. **Deploy.** You get a link like `blimp-xyz.vercel.app`.
+3. **Deploy.** You get a link like `blimp-xyz.vercel.app`. (The Supabase URL and publishable key are already in `.env.production`, so there's nothing to paste.)
 5. Back in Supabase: **Authentication → URL Configuration → Site URL** = your Vercel link.
 
 ### 3. Put it on your phone
