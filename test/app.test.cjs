@@ -1,0 +1,72 @@
+const { JSDOM } = require('jsdom');
+const fs = require('fs');
+const js = fs.readFileSync('/tmp/blimp-test/assets/' + fs.readdirSync('/tmp/blimp-test/assets').find(f => f.endsWith('.js')), 'utf8');
+const dom = new JSDOM('<!DOCTYPE html><div id="app"></div>', { runScripts: 'outside-only', pretendToBeVisual: true, url: 'https://blimp.test/' });
+const w = dom.window;
+w.scrollTo = () => {}; w.CSS = { escape: s => s }; w.matchMedia = () => ({ matches: false });
+let watchCb = null;
+Object.defineProperty(w.navigator, 'geolocation', { value: { watchPosition: (ok) => { watchCb = ok; return 1; }, clearWatch() {} } });
+w.addEventListener('error', e => console.log('PAGE ERROR', e.message));
+w.eval(js.replace(/import\.meta/g, '({env:{}})'));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const app = () => w.document.getElementById('app');
+const has = s => app().textContent.includes(s);
+const click = sel => { const el = app().querySelector(sel); if (!el) { console.log('  MISSING', sel); return; } el.dispatchEvent(new w.MouseEvent('click', { bubbles: true, detail: 1 })); };
+const type = (sel, v) => { const el = app().querySelector(sel); el.value = v; el.dispatchEvent(new w.Event('input', { bubbles: true })); };
+const slide = () => app().querySelector('.handle').dispatchEvent(new w.MouseEvent('click', { bubbles: true, detail: 0 }));
+const ok = (n, c) => console.log((c ? 'PASS ' : 'FAIL ') + n);
+(async () => {
+  await sleep(300);
+  ok('welcome screen', has('Skip sign-up'));
+  click('[data-act="start"]'); type('#su-id', '9105550142'); click('[data-act="su-send"]'); await sleep(50);
+  ok('code screen', has('Sent to (910) 555-0142'));
+  type('#su-code', '123456'); await sleep(80);
+  ok('pick name', has('Pick a name'));
+  type('#su-handle', 'Vance'); click('[data-act="su-handle"]'); await sleep(80);
+  ok('pings screen', has('Turn on pings'));
+  click('[data-act="su-allow"]'); await sleep(50);
+  ok('home with map slot + mapbox', !!app().querySelector('.hmap #mapbox'));
+  ok('finding you banner', has('Finding you'));
+  // GPS fix ~250 m from Welcome drop
+  watchCb({ coords: { latitude: 34.2380, longitude: -77.9478, accuracy: 10 } }); await sleep(50);
+  ok('drop card shows distance', /ft|mi/.test(app().querySelector('.dcard .meta').textContent));
+  ok('marker on map', !!w.document.querySelector('.mk'));
+  click('[data-act="cardtap"][data-v="official-welcome"]'); click('[data-act="cardtap"][data-v="official-welcome"]'); await sleep(30);
+  ok('drop screen, outside', has('FROM THE ZONE') && !!app().querySelector('.dmap #mapbox'));
+  // move real GPS inside
+  watchCb({ coords: { latitude: 34.23580, longitude: -77.94785, accuracy: 8 } }); await sleep(30);
+  ok('inside after GPS move', has('YOU’RE INSIDE THE ZONE'));
+  slide(); await sleep(50);
+  ok('payout first claim', has('FIRST CLAIM'));
+  click('[data-act="paysave"]'); await sleep(100);
+  ok('landed $10', has('landed') && has('$510.00'));
+  click('[data-act="compose"]'); type('#f-name', 'Riverwalk Run'); await sleep(20);
+  ok('compose ready', has('$105.00'));
+  slide(); await sleep(100);
+  ok('live drop', has('LIVE') && has('Share code'));
+  click('[data-act="sim"]'); await sleep(80); click('[data-act="sim"]'); await sleep(80);
+  ok('2 claims', has('2 people'));
+  click('[data-act="end"]'); await sleep(150);
+  ok('recap + refund', has('DRIFTED OFF') && has('$80.00'));
+  click('[data-act="home"]'); click('[data-act="you"]'); await sleep(50);
+  console.log('  ', has('@vance'), has('(910) 555-0142'), has('Returned · Riverwalk Run'), app().querySelector('.card .mono')?.textContent);ok('you tab', has('@vance') && has('(910) 555-0142') && has('Returned · Riverwalk Run'));
+  ok('balance 485', has('$485.00'));
+  click('[data-act="cashout"]'); await sleep(60);
+  ok('cash out', has('Sent $485.00'));
+  // code unlock
+  click('[data-act="home"]'); click('[data-act="codeopen"]'); type('#code', 'front');
+  app().querySelector('form[data-form="code"]').dispatchEvent(new w.Event('submit', { bubbles: true, cancelable: true })); await sleep(80);
+  ok('code drop opens', has('Secret on Front'));
+  // pretend location
+  click('[data-act="moveinto"]'); await sleep(30);
+  ok('pretend inside', has('YOU’RE INSIDE THE ZONE'));
+  click('[data-act="home"]');
+  ok('pretend banner', has('Pretend location is on'));
+  // skip flow fresh
+  click('[data-act="you"]'); click('[data-act="signout"]'); await sleep(80);
+  ok('signed out -> welcome', has('Skip sign-up'));
+  click('[data-act="skip"]'); await sleep(80);
+  ok('skip -> home', !!app().querySelector('.hsheet'));
+  click('[data-act="you"]'); ok('guest account', has('Guest account'));
+  process.exit(0);
+})();

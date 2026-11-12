@@ -1,0 +1,24 @@
+{
+  "name": "blimp",
+  "version": "0.1.0",
+  "description": "Money drops near you. Grab it before it drifts off.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:db": "node test/sql.test.mjs",
+    "test:app": "vite build -c test/vite.test.config.js && node test/app.test.cjs"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.0",
+    "maplibre-gl": "^4.7.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
+    "jsdom": "^31.0.0",
+    "sharp": "^0.35.5",
+    "vite": "^5.4.21"
+  },
+  "private": true
+}
